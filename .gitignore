@@ -1,0 +1,24 @@
+# Build artifacts
+smtlink_dump
+*.o
+payload/obj/
+fwhelper/fwhelper
+
+# Python
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+
+# Firmware dumps and generated binaries (never commit)
+dump.bin*
+bank_00400000.bin
+*.elf
+/*.bin
+verify_*.bin
+verify_*.bin.*
+tmp*.bin*
+rom.bin
+*.progress.json
+*.chunk

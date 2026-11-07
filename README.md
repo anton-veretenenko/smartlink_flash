@@ -86,6 +86,53 @@ The commands below require loading the payload binary that comes with the tool (
 
 `read_mem2 <addr> <size> <output_file>`  
 
+#### Dump / flash с таймаутами
+
+Загрузчик перестаёт отвечать после ~30 команд подряд, а `read_flash` на 2 МиБ —
+это больше 500 команд. Скрипты читают и пишут flash чанками, выдерживают паузу
+между ними, при ошибке сбрасывают USB (`authorized 0/1`) и повторяют попытку.
+Дамп можно продолжить с места обрыва: прогресс хранится в
+`<выходной_файл>.progress.json` (перекачать всё заново — `--restart`).
+
+| Скрипт | Назначение |
+| --- | --- |
+| `dump_chunks.py` | чтение flash чанками, докачка, сравнение с эталоном |
+| `restore_chunks.py` | запись диапазона из дампа чанками (`write_flash`) |
+| `flash_ranges.py` | запись произвольных диапазонов, опционально с CRC-проверкой |
+| `verify_flash.py` | проверка flash по CRC без записи |
+
+Общие параметры (значения по умолчанию):
+
+* `--timeout` — таймаут одного запуска `smtlink_dump`, секунды (180 у дампа,
+  60 у restore, 120 у flash, 30 у verify);
+* `--usb-timeout` — USB-таймаут внутри инструмента (команда `timeout`), мс (5000);
+* `--delay` — пауза между чанками, секунды (1.0, у verify 0.5);
+* `--wait` — сколько ждать появления устройства, секунды (60);
+* `--retries` — число попыток на чанк (8, у verify 3).
+
+Примеры:
+```
+# полный дамп 2 МиБ
+sudo python3 dump_chunks.py --out dump.bin --start 0 --end 0x200000
+
+# только область прошивки + сравнение с эталоном
+sudo python3 dump_chunks.py --out firm.bin --start 0xE000 --end 0x1A30A0 --compare dump.bin
+
+# восстановить область прошивки
+sudo python3 restore_chunks.py --dump dump.bin --start 0xE000 --end 0x1A30A0
+
+# записать два диапазона и проверить CRC каждого блока
+sudo python3 flash_ranges.py --dump dump.bin --verify 0xD000:0xF000 0x1F0000:0x1F1000
+
+# только проверить CRC
+sudo python3 verify_flash.py --dump dump.bin --start 0xE000 --end 0x1A30A0
+```
+
+`--help` работает без подключённого устройства. Скрипты запускают
+`./smtlink_dump` рядом с собой (или путь из `$SMTLINK_DUMP`). По умолчанию они
+вызывают его через `sudo`; если настроено udev-правило (см. ниже), добавьте
+`--no-sudo`.
+
 #### Using the tool without sudo
 
 If you create `/etc/udev/rules.d/80-smtlink.rules` with these lines:
